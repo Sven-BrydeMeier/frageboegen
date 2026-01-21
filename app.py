@@ -731,9 +731,6 @@ def page_success_mandant():
     Tel: 04331 732970  
     E-Mail: info@ra-rhm.de
     """)
-        st.session_state.page = 'dashboard'
-        st.session_state.current_form = None
-        st.rerun()
 
 def page_invite():
     if not st.session_state.current_form:
