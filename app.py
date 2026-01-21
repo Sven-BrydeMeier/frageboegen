@@ -745,6 +745,11 @@ def page_invite():
         return
     
     if st.button("← Zurück"):
+        # Session State aufräumen
+        if 'gen_link' in st.session_state:
+            del st.session_state['gen_link']
+        if 'gen_mailto' in st.session_state:
+            del st.session_state['gen_mailto']
         st.session_state.page = 'dashboard'
         st.session_state.current_form = None
         st.rerun()
@@ -761,22 +766,39 @@ def page_invite():
     
     mandant = st.text_input("👤 Mandant (optional)")
     
+    st.markdown("---")
+    
     col1, col2 = st.columns(2)
+    
     with col1:
-        st.markdown("### 🔗 Link")
-        if st.button("✨ Generieren", type="primary", use_container_width=True):
+        st.markdown("### 🔗 Einladungslink")
+        if st.button("✨ Link generieren", type="primary", use_container_width=True):
             link, _ = create_invitation_link(fid, mandant, base_url)
             st.session_state['gen_link'] = link
+        
         if 'gen_link' in st.session_state:
             st.code(st.session_state['gen_link'])
-            st.success("7 Tage gültig")
+            st.success("✅ Link erstellt! Gültig für 7 Tage.")
+            # Kopier-Hinweis
+            st.caption("Link markieren und kopieren (Strg+C)")
     
     with col2:
-        st.markdown("### 📧 E-Mail")
-        email = st.text_input("E-Mail-Adresse")
-        if st.button("📧 E-Mail erstellen", use_container_width=True) and email:
-            link, _ = create_invitation_link(fid, mandant, base_url)
-            st.markdown(f"[📧 Öffnen]({create_email_mailto(fid, email, link)})")
+        st.markdown("### 📧 E-Mail-Einladung")
+        email = st.text_input("E-Mail-Adresse des Mandanten", placeholder="mandant@beispiel.de")
+        
+        if st.button("📧 E-Mail erstellen", use_container_width=True):
+            if email:
+                link, _ = create_invitation_link(fid, mandant, base_url)
+                mailto = create_email_mailto(fid, email, link)
+                st.session_state['gen_mailto'] = mailto
+                st.session_state['gen_email'] = email
+            else:
+                st.warning("⚠️ Bitte E-Mail-Adresse eingeben")
+        
+        if 'gen_mailto' in st.session_state:
+            st.success(f"✅ E-Mail für {st.session_state.get('gen_email', '')} bereit")
+            st.markdown(f'<a href="{st.session_state["gen_mailto"]}" target="_blank" style="display:inline-block;padding:10px 20px;background:#b45309;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">📧 E-Mail-Programm öffnen</a>', unsafe_allow_html=True)
+            st.caption("Klicken Sie auf den Button um Ihr E-Mail-Programm zu öffnen")
 
 def page_invitations():
     st.markdown("## 📨 Einladungen")
