@@ -40,7 +40,7 @@ from modules.auth import (
 )
 
 # ============================================
-# FluentForms Import-Konverter
+# FluentForms Import-Konverter (VOLLSTÄNDIG)
 # ============================================
 
 # Mapping von FluentForms Feldtypen zu internen Typen
@@ -85,6 +85,60 @@ FF_FIELD_TYPE_MAP = {
     'hcaptcha': None,
 }
 
+# Operator-Mapping
+FF_OPERATOR_MAP = {
+    '=': 'eq',
+    '!=': 'neq',
+    '>': 'gt',
+    '<': 'lt',
+    '>=': 'gte',
+    '<=': 'lte',
+    'contains': 'contains',
+    'doNotContains': 'not_contains',
+    'startsWith': 'starts_with',
+    'endsWith': 'ends_with',
+}
+
+
+def convert_ff_conditions(ff_conditions: Dict) -> Optional[Dict]:
+    """Konvertiert FluentForms Bedingungen in internes Format"""
+    if not isinstance(ff_conditions, dict):
+        return None
+    
+    if not ff_conditions.get('status'):
+        return None
+    
+    conditions = ff_conditions.get('conditions', [])
+    if not isinstance(conditions, list):
+        return None
+    
+    valid_conditions = []
+    for c in conditions:
+        if not isinstance(c, dict):
+            continue
+        field = c.get('field', '')
+        value = c.get('value', '')
+        operator = c.get('operator', '=')
+        
+        if not field:
+            continue
+        
+        valid_conditions.append({
+            'field': field,
+            'operator': FF_OPERATOR_MAP.get(operator, 'eq'),
+            'value': value if value is not None else ''
+        })
+    
+    if not valid_conditions:
+        return None
+    
+    return {
+        'enabled': True,
+        'logic_type': 'all' if ff_conditions.get('type') == 'all' else 'any',
+        'conditions': valid_conditions
+    }
+
+
 def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
     """Konvertiert ein FluentForms-Feld in internes Format"""
     element = ff_field.get('element', '')
@@ -118,8 +172,19 @@ def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
     
     # Validierung
     validation_rules = settings.get('validation_rules', {})
-    if isinstance(validation_rules, dict) and validation_rules.get('required', {}).get('value'):
-        field['validation']['required'] = True
+    if isinstance(validation_rules, dict):
+        if validation_rules.get('required', {}).get('value'):
+            field['validation']['required'] = True
+        if validation_rules.get('min', {}).get('value'):
+            try:
+                field['validation']['min_value'] = float(validation_rules['min']['value'])
+            except:
+                pass
+        if validation_rules.get('max', {}).get('value'):
+            try:
+                field['validation']['max_value'] = float(validation_rules['max']['value'])
+            except:
+                pass
     
     # Optionen für Select/Radio/Checkbox
     if internal_type in ['select', 'radio', 'multi_select']:
@@ -132,21 +197,9 @@ def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
     
     # Bedingte Logik
     cond_logics = settings.get('conditional_logics', {})
-    if isinstance(cond_logics, dict) and cond_logics.get('status'):
-        conditions = cond_logics.get('conditions', [])
-        if isinstance(conditions, list) and any(isinstance(c, dict) and c.get('field') for c in conditions):
-            field['conditional_logic'] = {
-                'enabled': True,
-                'logic_type': 'all' if cond_logics.get('type') == 'all' else 'any',
-                'conditions': [
-                    {
-                        'field': c['field'],
-                        'operator': 'eq' if c.get('operator') == '=' else 'neq',
-                        'value': c.get('value', '')
-                    }
-                    for c in conditions if isinstance(c, dict) and c.get('field')
-                ]
-            }
+    converted_cond = convert_ff_conditions(cond_logics)
+    if converted_cond:
+        field['conditional_logic'] = converted_cond
     
     # Section Break
     if element == 'section_break':
@@ -186,8 +239,143 @@ def flatten_ff_container(ff_field: Dict) -> List[Dict]:
     return fields
 
 
+def extract_ff_notifications(ff_form: Dict) -> List[Dict]:
+    """Extrahiert E-Mail-Benachrichtigungen aus FluentForms"""
+    notifications = []
+    
+    metas = ff_form.get('metas', [])
+    if not isinstance(metas, list):
+        return notifications
+    
+    for meta in metas:
+        if not isinstance(meta, dict):
+            continue
+        if meta.get('meta_key') != 'notifications':
+            continue
+        
+        value = meta.get('value', '')
+        if isinstance(value, str):
+            try:
+                notif = json.loads(value)
+            except:
+                continue
+        elif isinstance(value, dict):
+            notif = value
+        else:
+            continue
+        
+        # Empfänger extrahieren
+        send_to = notif.get('sendTo', {})
+        recipient_email = ''
+        if isinstance(send_to, dict):
+            if send_to.get('type') == 'email':
+                recipient_email = send_to.get('email', '')
+            elif send_to.get('type') == 'field':
+                recipient_email = f"{{{{ {send_to.get('field', '')} }}}}"
+        
+        # Bedingungen
+        conditionals = notif.get('conditionals', {})
+        converted_cond = convert_ff_conditions(conditionals)
+        
+        notification = {
+            'name': notif.get('name', 'E-Mail-Benachrichtigung'),
+            'enabled': notif.get('enabled', True) != False,
+            'recipient': recipient_email,
+            'subject': notif.get('subject', ''),
+            'message': notif.get('message', ''),
+            'from_name': notif.get('fromName', ''),
+            'from_email': notif.get('fromEmail', ''),
+            'reply_to': notif.get('replyTo', ''),
+            'bcc': notif.get('bcc', ''),
+            'conditions': converted_cond,
+        }
+        
+        notifications.append(notification)
+    
+    return notifications
+
+
+def extract_ff_settings(ff_form: Dict) -> Dict:
+    """Extrahiert Formular-Einstellungen aus FluentForms"""
+    settings = {
+        'success_message': 'Vielen Dank für Ihre Eingabe!',
+        'redirect_url': None,
+    }
+    
+    metas = ff_form.get('metas', [])
+    if not isinstance(metas, list):
+        return settings
+    
+    for meta in metas:
+        if not isinstance(meta, dict):
+            continue
+        if meta.get('meta_key') != 'formSettings':
+            continue
+        
+        value = meta.get('value', '')
+        if isinstance(value, str):
+            try:
+                form_settings = json.loads(value)
+            except:
+                continue
+        elif isinstance(value, dict):
+            form_settings = value
+        else:
+            continue
+        
+        confirmation = form_settings.get('confirmation', {})
+        if isinstance(confirmation, dict):
+            msg = confirmation.get('messageToShow', '')
+            if msg:
+                settings['success_message'] = msg
+            
+            redirect = confirmation.get('redirectTo', '')
+            if redirect == 'customUrl':
+                settings['redirect_url'] = confirmation.get('customUrl', '')
+    
+    return settings
+
+
+def notifications_to_workflows(notifications: List[Dict]) -> List[Dict]:
+    """Konvertiert Notifications in Workflow-Regeln"""
+    workflows = []
+    
+    for i, notif in enumerate(notifications):
+        if not notif.get('enabled', True):
+            continue
+        
+        workflow = {
+            'id': f"workflow_{i+1}",
+            'name': notif.get('name', f'E-Mail {i+1}'),
+            'trigger': 'on_submit',
+            'enabled': True,
+            'actions': [
+                {
+                    'type': 'send_email',
+                    'config': {
+                        'to': notif.get('recipient', ''),
+                        'subject': notif.get('subject', ''),
+                        'body': notif.get('message', ''),
+                        'from_name': notif.get('from_name', ''),
+                        'from_email': notif.get('from_email', ''),
+                        'reply_to': notif.get('reply_to', ''),
+                        'bcc': notif.get('bcc', ''),
+                    }
+                }
+            ],
+        }
+        
+        # Bedingungen hinzufügen
+        if notif.get('conditions'):
+            workflow['conditions'] = notif['conditions']
+        
+        workflows.append(workflow)
+    
+    return workflows
+
+
 def convert_fluentform_to_internal(ff_form: Dict) -> Optional[Dict]:
-    """Konvertiert ein FluentForms-Formular in internes Format"""
+    """Konvertiert ein FluentForms-Formular VOLLSTÄNDIG in internes Format"""
     form_id = f"form_{ff_form.get('id', uuid.uuid4().hex[:8])}"
     title = ff_form.get('title', 'Importiertes Formular')
     
@@ -251,6 +439,13 @@ def convert_fluentform_to_internal(ff_form: Dict) -> Optional[Dict]:
     if not pages:
         return None
     
+    # E-Mail-Benachrichtigungen extrahieren
+    notifications = extract_ff_notifications(ff_form)
+    workflows = notifications_to_workflows(notifications)
+    
+    # Formular-Einstellungen extrahieren
+    ff_settings = extract_ff_settings(ff_form)
+    
     return {
         'id': form_id,
         'name': re.sub(r'[^a-z0-9_]', '_', title.lower())[:30],
@@ -261,13 +456,15 @@ def convert_fluentform_to_internal(ff_form: Dict) -> Optional[Dict]:
         'status': 'active' if ff_form.get('status') == 'published' else 'draft',
         'pages': pages,
         'repeatable_sections': [],
-        'workflows': [],
+        'workflows': workflows,
+        'notifications': notifications,  # Original-Notifications für Referenz
         'settings': {
             'show_progress': len(pages) > 1,
             'allow_save_draft': True,
             'show_review_page': True,
             'submit_button_text': 'Absenden',
-            'success_message': 'Vielen Dank für Ihre Eingabe!',
+            'success_message': ff_settings.get('success_message', 'Vielen Dank!'),
+            'redirect_url': ff_settings.get('redirect_url'),
         },
         'created_at': datetime.now().isoformat(),
         'updated_at': datetime.now().isoformat(),
@@ -1350,6 +1547,8 @@ def page_settings():
     
     with tab1:
         st.markdown("### FluentForms Import")
+        st.info("Der Import übernimmt: Felder, Bedingungen, E-Mail-Benachrichtigungen, Workflows")
+        
         uploaded = st.file_uploader("JSON importieren (FluentForms Export)", type=['json'])
         if uploaded:
             try:
@@ -1357,23 +1556,61 @@ def page_settings():
                 
                 if isinstance(data, list):
                     imported_count = 0
+                    total_fields = 0
+                    total_conditions = 0
+                    total_emails = 0
+                    
                     for ff_form in data:
-                        # FluentForms in internes Format konvertieren
                         converted = convert_fluentform_to_internal(ff_form)
                         if converted:
                             st.session_state.forms[converted['id']] = converted
                             imported_count += 1
+                            
+                            # Statistiken sammeln
+                            for page in converted.get('pages', []):
+                                for field in page.get('fields', []):
+                                    total_fields += 1
+                                    if field.get('conditional_logic', {}).get('enabled'):
+                                        total_conditions += 1
+                            
+                            total_emails += len(converted.get('workflows', []))
                     
-                    st.success(f"✅ {imported_count} Formular(e) importiert")
+                    st.success(f"✅ **{imported_count} Formular(e)** importiert")
                     
-                    # Übersicht anzeigen
-                    with st.expander("Importierte Formulare"):
+                    # Statistik-Karten
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("📝 Felder", total_fields)
+                    col2.metric("🔀 Bedingungen", total_conditions)
+                    col3.metric("📧 E-Mail-Regeln", total_emails)
+                    
+                    # Detaillierte Übersicht
+                    with st.expander("📋 Importierte Formulare (Details)", expanded=True):
                         for form_id, form in st.session_state.forms.items():
-                            total_fields = sum(len(p.get('fields', [])) for p in form.get('pages', []))
-                            st.write(f"- **{form.get('title')}**: {total_fields} Felder, {len(form.get('pages', []))} Seite(n)")
+                            form_fields = sum(len(p.get('fields', [])) for p in form.get('pages', []))
+                            form_conds = sum(
+                                1 for p in form.get('pages', []) 
+                                for f in p.get('fields', []) 
+                                if f.get('conditional_logic', {}).get('enabled')
+                            )
+                            form_emails = len(form.get('workflows', []))
+                            
+                            st.markdown(f"**{form.get('title')}**")
+                            st.write(f"  📝 {form_fields} Felder | 🔀 {form_conds} Bedingungen | 📧 {form_emails} E-Mails | 📄 {len(form.get('pages', []))} Seite(n)")
+                            
+                            # E-Mail-Details
+                            if form_emails > 0:
+                                with st.expander(f"📧 E-Mail-Benachrichtigungen ({form_emails})"):
+                                    for wf in form.get('workflows', []):
+                                        email_config = wf.get('actions', [{}])[0].get('config', {})
+                                        st.write(f"- **{wf.get('name')}**")
+                                        st.write(f"  An: `{email_config.get('to', '-')}`")
+                                        st.write(f"  Betreff: {email_config.get('subject', '-')[:50]}...")
+                                        if wf.get('conditions'):
+                                            st.write(f"  ⚡ Mit Bedingungen: {len(wf['conditions'].get('conditions', []))} Regel(n)")
+                            
+                            st.markdown("---")
                             
                 elif isinstance(data, dict):
-                    # Einzelnes Formular
                     converted = convert_fluentform_to_internal(data)
                     if converted:
                         st.session_state.forms[converted['id']] = converted
