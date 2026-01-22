@@ -15,6 +15,7 @@ import streamlit as st
 import json
 import uuid
 import copy
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
@@ -37,6 +38,243 @@ from modules.auth import (
     require_auth, render_login_form, render_user_menu,
     render_user_management, User, UserRole, AuthManager
 )
+
+# ============================================
+# FluentForms Import-Konverter
+# ============================================
+
+# Mapping von FluentForms Feldtypen zu internen Typen
+FF_FIELD_TYPE_MAP = {
+    'input_text': 'text',
+    'input_email': 'email',
+    'input_number': 'number',
+    'input_url': 'text',
+    'input_password': 'text',
+    'textarea': 'textarea',
+    'input_date': 'date',
+    'input_hidden': 'hidden',
+    'select': 'select',
+    'input_radio': 'radio',
+    'input_checkbox': 'checkbox',
+    'multi_select': 'multi_select',
+    'input_file': 'file_upload',
+    'input_image': 'file_upload',
+    'section_break': 'section',
+    'custom_html': 'info_text',
+    'shortcode': 'info_text',
+    'terms_and_condition': 'checkbox',
+    'gdpr_agreement': 'checkbox',
+    'phone': 'phone',
+    'rangeslider': 'number',
+    'rich_text_input': 'textarea',
+    'ratings': 'select',
+    'net_promoter_score': 'select',
+    'tabular_grid': 'info_text',
+    'chained_select': 'select',
+    'color_picker': 'text',
+    'repeater_field': 'info_text',
+    'post_selection': 'select',
+    'address': 'text',
+    'input_name': 'text',
+    'container': None,  # Wird aufgelöst
+    'form_step': None,  # Seitenumbruch
+    'save_progress_button': None,
+    'action_hook': None,
+    'turnstile': None,
+    'recaptcha': None,
+    'hcaptcha': None,
+}
+
+def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
+    """Konvertiert ein FluentForms-Feld in internes Format"""
+    element = ff_field.get('element', '')
+    
+    # Attributes kann dict oder liste sein - robust behandeln
+    attributes = ff_field.get('attributes', {})
+    if not isinstance(attributes, dict):
+        attributes = {}
+    
+    settings = ff_field.get('settings', {})
+    if not isinstance(settings, dict):
+        settings = {}
+    
+    internal_type = FF_FIELD_TYPE_MAP.get(element)
+    if internal_type is None:
+        return None
+    
+    # Feld-Name bestimmen
+    field_name = attributes.get('name', '')
+    if not field_name:
+        field_name = f"field_{ff_field.get('uniqElKey', uuid.uuid4().hex[:8])}"
+    
+    field = {
+        'id': field_name,
+        'type': internal_type,
+        'label': settings.get('label', '') or '',
+        'placeholder': attributes.get('placeholder', settings.get('placeholder', '')) or '',
+        'description': settings.get('help_message', '') or '',
+        'validation': {},
+    }
+    
+    # Validierung
+    validation_rules = settings.get('validation_rules', {})
+    if isinstance(validation_rules, dict) and validation_rules.get('required', {}).get('value'):
+        field['validation']['required'] = True
+    
+    # Optionen für Select/Radio/Checkbox
+    if internal_type in ['select', 'radio', 'multi_select']:
+        options = settings.get('advanced_options', [])
+        if isinstance(options, list) and options:
+            field['options'] = [
+                {'label': opt.get('label', ''), 'value': opt.get('value', opt.get('label', ''))}
+                for opt in options if isinstance(opt, dict) and opt.get('label')
+            ]
+    
+    # Bedingte Logik
+    cond_logics = settings.get('conditional_logics', {})
+    if isinstance(cond_logics, dict) and cond_logics.get('status'):
+        conditions = cond_logics.get('conditions', [])
+        if isinstance(conditions, list) and any(isinstance(c, dict) and c.get('field') for c in conditions):
+            field['conditional_logic'] = {
+                'enabled': True,
+                'logic_type': 'all' if cond_logics.get('type') == 'all' else 'any',
+                'conditions': [
+                    {
+                        'field': c['field'],
+                        'operator': 'eq' if c.get('operator') == '=' else 'neq',
+                        'value': c.get('value', '')
+                    }
+                    for c in conditions if isinstance(c, dict) and c.get('field')
+                ]
+            }
+    
+    # Section Break
+    if element == 'section_break':
+        desc = settings.get('description', '') or ''
+        field['description'] = re.sub(r'<[^>]+>', '', desc).strip()[:500]
+    
+    # Custom HTML
+    if element == 'custom_html':
+        html = settings.get('html_codes', '') or ''
+        field['label'] = re.sub(r'<[^>]+>', '', html).strip()[:200] or 'Info'
+    
+    return field
+
+
+def flatten_ff_container(ff_field: Dict) -> List[Dict]:
+    """Extrahiert Felder aus FluentForms Containern"""
+    fields = []
+    columns = ff_field.get('columns', [])
+    if not isinstance(columns, list):
+        return fields
+    
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        col_fields = column.get('fields', [])
+        if not isinstance(col_fields, list):
+            continue
+        for f in col_fields:
+            if not isinstance(f, dict):
+                continue
+            if f.get('element') == 'container':
+                fields.extend(flatten_ff_container(f))
+            else:
+                converted = convert_ff_field(f)
+                if converted:
+                    fields.append(converted)
+    return fields
+
+
+def convert_fluentform_to_internal(ff_form: Dict) -> Optional[Dict]:
+    """Konvertiert ein FluentForms-Formular in internes Format"""
+    form_id = f"form_{ff_form.get('id', uuid.uuid4().hex[:8])}"
+    title = ff_form.get('title', 'Importiertes Formular')
+    
+    # form_fields extrahieren
+    form_fields = ff_form.get('form_fields', {})
+    if isinstance(form_fields, str):
+        try:
+            form_fields = json.loads(form_fields)
+        except:
+            form_fields = {}
+    
+    if not isinstance(form_fields, dict):
+        return None
+    
+    raw_fields = form_fields.get('fields', [])
+    if not isinstance(raw_fields, list) or not raw_fields:
+        return None
+    
+    # Felder konvertieren und in Seiten aufteilen
+    pages = []
+    current_page_fields = []
+    page_count = 0
+    
+    for ff_field in raw_fields:
+        if not isinstance(ff_field, dict):
+            continue
+        
+        element = ff_field.get('element', '')
+        
+        # Container auflösen
+        if element == 'container':
+            current_page_fields.extend(flatten_ff_container(ff_field))
+            continue
+        
+        # Form Step = neue Seite
+        if element == 'form_step':
+            if current_page_fields:
+                page_count += 1
+                pages.append({
+                    'id': f'page_{page_count}',
+                    'title': f'Seite {page_count}',
+                    'fields': current_page_fields
+                })
+                current_page_fields = []
+            continue
+        
+        # Normales Feld konvertieren
+        converted = convert_ff_field(ff_field)
+        if converted:
+            current_page_fields.append(converted)
+    
+    # Letzte Seite
+    if current_page_fields:
+        page_count += 1
+        pages.append({
+            'id': f'page_{page_count}',
+            'title': title if page_count == 1 else f'Seite {page_count}',
+            'fields': current_page_fields
+        })
+    
+    if not pages:
+        return None
+    
+    return {
+        'id': form_id,
+        'name': re.sub(r'[^a-z0-9_]', '_', title.lower())[:30],
+        'title': title,
+        'description': '',
+        'category': 'Import',
+        'version': 1,
+        'status': 'active' if ff_form.get('status') == 'published' else 'draft',
+        'pages': pages,
+        'repeatable_sections': [],
+        'workflows': [],
+        'settings': {
+            'show_progress': len(pages) > 1,
+            'allow_save_draft': True,
+            'show_review_page': True,
+            'submit_button_text': 'Absenden',
+            'success_message': 'Vielen Dank für Ihre Eingabe!',
+        },
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
+        'source': 'fluentforms',
+        'original_id': ff_form.get('id'),
+    }
+
 
 # ============================================
 # Konfiguration
@@ -1111,21 +1349,47 @@ def page_settings():
     tab1, tab2 = st.tabs(["📥 Import/Export", "🔐 Secrets"])
     
     with tab1:
-        uploaded = st.file_uploader("JSON importieren", type=['json'])
+        st.markdown("### FluentForms Import")
+        uploaded = st.file_uploader("JSON importieren (FluentForms Export)", type=['json'])
         if uploaded:
             try:
                 data = json.load(uploaded)
+                
                 if isinstance(data, list):
-                    for form in data:
-                        form['id'] = f"form_{uuid.uuid4().hex[:8]}"
-                        st.session_state.forms[form['id']] = form
-                    st.success(f"✅ {len(data)} Formular(e) importiert")
+                    imported_count = 0
+                    for ff_form in data:
+                        # FluentForms in internes Format konvertieren
+                        converted = convert_fluentform_to_internal(ff_form)
+                        if converted:
+                            st.session_state.forms[converted['id']] = converted
+                            imported_count += 1
+                    
+                    st.success(f"✅ {imported_count} Formular(e) importiert")
+                    
+                    # Übersicht anzeigen
+                    with st.expander("Importierte Formulare"):
+                        for form_id, form in st.session_state.forms.items():
+                            total_fields = sum(len(p.get('fields', [])) for p in form.get('pages', []))
+                            st.write(f"- **{form.get('title')}**: {total_fields} Felder, {len(form.get('pages', []))} Seite(n)")
+                            
+                elif isinstance(data, dict):
+                    # Einzelnes Formular
+                    converted = convert_fluentform_to_internal(data)
+                    if converted:
+                        st.session_state.forms[converted['id']] = converted
+                        st.success(f"✅ Formular '{converted['title']}' importiert")
+                        
             except Exception as e:
-                st.error(f"Fehler: {e}")
+                st.error(f"Fehler beim Import: {e}")
+                import traceback
+                st.code(traceback.format_exc())
+        
+        st.markdown("---")
         
         if st.session_state.forms:
+            st.markdown("### Export")
             export = json.dumps(list(st.session_state.forms.values()), indent=2, ensure_ascii=False, default=str)
-            st.download_button("📥 Exportieren", export, "formulare.json", "application/json")
+            st.download_button("📥 Alle Formulare exportieren", export, "formulare.json", "application/json")
     
     with tab2:
         st.code("""
