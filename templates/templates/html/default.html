@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default('Dokument') }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm 2.5cm;
+            @top-center {
+                content: "{{ header | default('RA-RHM Rechtsanwälte') }}";
+                font-size: 10pt;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Seite " counter(page) " von " counter(pages);
+                font-size: 9pt;
+                color: #999;
+            }
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 18pt;
+            color: #78350f;
+            border-bottom: 2px solid #b45309;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 14pt;
+            color: #92400e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        
+        h3 {
+            font-size: 12pt;
+            color: #a16207;
+            margin-top: 20px;
+        }
+        
+        .header {
+            text-align: right;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .header .logo {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #78350f;
+        }
+        
+        .header .address {
+            font-size: 9pt;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .meta {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+        }
+        
+        .meta table {
+            width: 100%;
+        }
+        
+        .meta td {
+            padding: 3px 10px;
+        }
+        
+        .meta .label {
+            font-weight: bold;
+            color: #92400e;
+            width: 150px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .field-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .field-table th,
+        .field-table td {
+            border: 1px solid #e5e7eb;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        
+        .field-table th {
+            background: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+            width: 35%;
+        }
+        
+        .field-table td {
+            background: #fff;
+        }
+        
+        .field-table tr:nth-child(even) td {
+            background: #f9fafb;
+        }
+        
+        .signature-area {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            width: 45%;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 9pt;
+            color: #6b7280;
+            text-align: center;
+        }
+        
+        .highlight {
+            background: #fef9c3;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        .note {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 10px 15px;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        
+        .warning {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 10px 15px;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        
+        ul, ol {
+            margin-left: 20px;
+        }
+        
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">⚖️ RA-RHM</div>
+        <div class="address">
+            Rechtsanwälte | Musterstraße 123 | 12345 Musterstadt<br>
+            Tel: 0123 456789 | E-Mail: kanzlei@ra-rhm.de
+        </div>
+    </div>
+    
+    <h1>{{ title | default('Mandantenbogen') }}</h1>
+    
+    <div class="meta">
+        <table>
+            <tr>
+                <td class="label">Vorgangsnummer:</td>
+                <td>{{ submission_id | default('-') }}</td>
+            </tr>
+            <tr>
+                <td class="label">Eingangsdatum:</td>
+                <td>{{ created_at | default(now) | date('%d.%m.%Y %H:%M') }}</td>
+            </tr>
+            <tr>
+                <td class="label">Formular:</td>
+                <td>{{ form_title | default('-') }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    {% for section in sections %}
+    <div class="section">
+        <h2>{{ section.title }}</h2>
+        
+        {% if section.description %}
+        <p>{{ section.description }}</p>
+        {% endif %}
+        
+        <table class="field-table">
+            {% for field in section.fields %}
+            <tr>
+                <th>{{ field.label }}</th>
+                <td>{{ field.value | default('-') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endfor %}
+    
+    {% if notes %}
+    <div class="note">
+        <strong>Hinweis:</strong> {{ notes }}
+    </div>
+    {% endif %}
+    
+    {% if show_signature %}
+    <div class="signature-area">
+        <div class="signature-box">
+            Ort, Datum
+        </div>
+        <div class="signature-box">
+            Unterschrift Mandant
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="footer">
+        Erstellt am {{ now | date('%d.%m.%Y') }} | 
+        RA-RHM Rechtsanwälte | 
+        Dieses Dokument wurde automatisch generiert.
+    </div>
+</body>
+</html>
