@@ -658,7 +658,17 @@ def page_form_fill():
     if page.get('description'):
         st.markdown(page['description'])
     
-    # st.form für gebündelten Submit
+    # Repeatable Sections dieser Seite AUSSERHALB des Forms (wegen st.button)
+    has_repeatable = False
+    for section in form.get('repeatable_sections', []):
+        if section.get('page_id') == page.get('id'):
+            has_repeatable = True
+            render_repeatable_section(section, st.session_state.form_values, f"page_{current_page}")
+    
+    if has_repeatable:
+        st.markdown("---")
+    
+    # st.form für gebündelten Submit der normalen Felder
     with st.form(key=f"wizard_page_{current_page}"):
         for field in page.get('fields', []):
             if not evaluate_conditional_logic(field, st.session_state.form_values):
@@ -668,11 +678,6 @@ def page_form_fill():
             
             if field_id and value is not None:
                 st.session_state.form_values[field_id] = value
-        
-        # Repeatable Sections dieser Seite
-        for section in form.get('repeatable_sections', []):
-            if section.get('page_id') == page.get('id'):
-                render_repeatable_section(section, st.session_state.form_values, f"page_{current_page}")
         
         st.markdown("---")
         
