@@ -28,11 +28,21 @@ except ImportError:
     HAS_DOCX = False
 
 # PDF
-try:
-    from weasyprint import HTML, CSS
-    HAS_WEASYPRINT = True
-except ImportError:
-    HAS_WEASYPRINT = False
+# WeasyPrint braucht System-Bibliotheken (libpango) - auf Streamlit Cloud nicht verfügbar
+HAS_WEASYPRINT = False
+_weasyprint_error = None
+
+def _try_import_weasyprint():
+    """Lazy import für WeasyPrint"""
+    global HAS_WEASYPRINT, _weasyprint_error
+    try:
+        from weasyprint import HTML, CSS
+        HAS_WEASYPRINT = True
+        return HTML, CSS
+    except (ImportError, OSError) as e:
+        _weasyprint_error = str(e)
+        HAS_WEASYPRINT = False
+        return None, None
 
 try:
     from reportlab.lib import colors
@@ -291,8 +301,16 @@ class DocumentEngine:
         """
         Generiert PDF aus HTML mit WeasyPrint
         """
-        if not HAS_WEASYPRINT:
-            raise ImportError("weasyprint ist nicht installiert: pip install weasyprint")
+        # Lazy import
+        HTML, CSS = _try_import_weasyprint()
+        
+        if not HAS_WEASYPRINT or HTML is None:
+            raise ImportError(
+                f"WeasyPrint ist nicht verfügbar. "
+                f"Auf Streamlit Cloud fehlen System-Bibliotheken (libpango). "
+                f"Nutze stattdessen generate_pdf_reportlab(). "
+                f"Fehler: {_weasyprint_error}"
+            )
         
         # HTML rendern
         rendered_html = self.render_template_string(html_content, data)
