@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Neue Mandantenanfrage</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.5;
+            color: #1f2937;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: #78350f;
+            color: #fff;
+            padding: 20px 25px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .content {
+            padding: 25px;
+        }
+        .alert {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        .alert.urgent {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        th {
+            font-weight: 600;
+            color: #374151;
+            width: 35%;
+            background: #f9fafb;
+        }
+        .highlight {
+            background: #fef9c3;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .sachverhalt {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+        .actions {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .button-primary {
+            background: #b45309;
+            color: #fff !important;
+        }
+        .button-secondary {
+            background: #f3f4f6;
+            color: #374151 !important;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 15px 25px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #6b7280;
+            border-radius: 0 0 8px 8px;
+        }
+        .meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                📩 Neue Mandantenanfrage
+                {% if priority == 'high' %}
+                <span class="badge">DRINGEND</span>
+                {% endif %}
+            </h1>
+        </div>
+        
+        <div class="content">
+            {% if priority == 'high' %}
+            <div class="alert urgent">
+                <strong>⚠️ Dringende Anfrage!</strong> 
+                Bitte zeitnah bearbeiten.
+            </div>
+            {% endif %}
+            
+            <div class="section">
+                <div class="section-title">📋 Zusammenfassung</div>
+                <div class="meta">
+                    <div class="meta-item">
+                        <strong>ID:</strong> {{ submission_id }}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Eingang:</strong> {{ created_at | date('%d.%m.%Y %H:%M') }}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Formular:</strong> {{ form_title }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">👤 Mandant</div>
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <td><strong>{{ anrede }} {{ vorname }} {{ nachname }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>E-Mail</th>
+                        <td><a href="mailto:{{ email }}">{{ email }}</a></td>
+                    </tr>
+                    {% if telefon %}
+                    <tr>
+                        <th>Telefon</th>
+                        <td><a href="tel:{{ telefon }}">{{ telefon }}</a></td>
+                    </tr>
+                    {% endif %}
+                    {% if strasse %}
+                    <tr>
+                        <th>Adresse</th>
+                        <td>{{ strasse }}, {{ plz }} {{ ort }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">⚖️ Anliegen</div>
+                <table>
+                    <tr>
+                        <th>Rechtsgebiet</th>
+                        <td><span class="highlight">{{ rechtsgebiet | default('-') }}</span></td>
+                    </tr>
+                </table>
+                
+                {% if sachverhalt %}
+                <div class="sachverhalt">{{ sachverhalt }}</div>
+                {% endif %}
+            </div>
+            
+            {% if unterlagen %}
+            <div class="section">
+                <div class="section-title">📎 Anhänge</div>
+                <p>Der Mandant hat {{ unterlagen | length }} Datei(en) hochgeladen.</p>
+            </div>
+            {% endif %}
+            
+            <div class="actions">
+                <a href="{{ app_url }}/submissions/{{ submission_id }}" class="button button-primary">
+                    📂 Vorgang öffnen
+                </a>
+                <a href="mailto:{{ email }}?subject=Re: Ihre Anfrage {{ submission_id }}" class="button button-secondary">
+                    ✉️ Antworten
+                </a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>RA-RHM Formular-System</strong><br>
+            Automatisch generierte Benachrichtigung | 
+            {{ now | date('%d.%m.%Y %H:%M') }}
+        </div>
+    </div>
+</body>
+</html>

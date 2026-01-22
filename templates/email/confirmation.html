@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bestätigung Ihrer Anfrage</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #78350f, #b45309);
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .logo {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #78350f;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #fef3c7;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-box h3 {
+            margin: 0 0 15px 0;
+            color: #92400e;
+            font-size: 16px;
+        }
+        .info-box table {
+            width: 100%;
+        }
+        .info-box td {
+            padding: 5px 0;
+        }
+        .info-box .label {
+            font-weight: 600;
+            color: #78350f;
+            width: 40%;
+        }
+        .steps {
+            margin: 25px 0;
+        }
+        .step {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .step-number {
+            background: #b45309;
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .step-text {
+            padding-top: 3px;
+        }
+        .button {
+            display: inline-block;
+            background: #b45309;
+            color: #fff !important;
+            padding: 12px 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background: #92400e;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 25px 30px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .footer a {
+            color: #b45309;
+            text-decoration: none;
+        }
+        .social {
+            margin-top: 15px;
+        }
+        .social a {
+            margin-right: 15px;
+        }
+        .disclaimer {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚖️</div>
+            <h1>RA-RHM Rechtsanwälte</h1>
+        </div>
+        
+        <div class="content">
+            <p class="greeting">
+                {{ anrede | default('Guten Tag') }} {{ vorname | default('') }} {{ nachname | default('') }},
+            </p>
+            
+            <p>
+                vielen Dank für Ihre Anfrage. Wir haben Ihre Angaben erhalten und werden 
+                diese schnellstmöglich bearbeiten.
+            </p>
+            
+            <div class="info-box">
+                <h3>📋 Ihre Anfrage</h3>
+                <table>
+                    <tr>
+                        <td class="label">Vorgangsnummer:</td>
+                        <td><strong>{{ submission_id | default('-') }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Eingangsdatum:</td>
+                        <td>{{ created_at | default(now) | date('%d.%m.%Y %H:%M') }}</td>
+                    </tr>
+                    {% if rechtsgebiet %}
+                    <tr>
+                        <td class="label">Rechtsgebiet:</td>
+                        <td>{{ rechtsgebiet }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+            
+            <h3 style="color: #78350f;">📌 Wie geht es weiter?</h3>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <strong>Prüfung</strong><br>
+                        Wir prüfen Ihre Angaben und Unterlagen.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <strong>Kontaktaufnahme</strong><br>
+                        Ein Anwalt wird sich innerhalb von {{ response_time | default('2 Werktagen') }} bei Ihnen melden.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <strong>Beratungsgespräch</strong><br>
+                        Bei Bedarf vereinbaren wir einen Termin für eine ausführliche Beratung.
+                    </div>
+                </div>
+            </div>
+            
+            {% if attachment %}
+            <p>
+                📎 Im Anhang finden Sie eine Kopie Ihrer Angaben zur Bestätigung.
+            </p>
+            {% endif %}
+            
+            <p>
+                Bei dringenden Fragen erreichen Sie uns unter:<br>
+                <strong>📞 {{ telefon_kanzlei | default('0123 456789') }}</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <strong>RA-RHM Rechtsanwälte</strong><br>
+            Musterstraße 123 | 12345 Musterstadt<br>
+            Tel: 0123 456789 | Fax: 0123 456780<br>
+            E-Mail: <a href="mailto:kanzlei@ra-rhm.de">kanzlei@ra-rhm.de</a> | 
+            Web: <a href="https://www.ra-rhm.de">www.ra-rhm.de</a>
+            
+            <div class="disclaimer">
+                Diese E-Mail und etwaige Anhänge sind vertraulich und ausschließlich für den 
+                bezeichneten Adressaten bestimmt. Wenn Sie nicht der richtige Adressat sind, 
+                informieren Sie bitte umgehend den Absender und löschen Sie diese E-Mail.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
