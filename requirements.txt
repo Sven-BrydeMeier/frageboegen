@@ -1,8 +1,9 @@
 # ============================================
 # RA-RHM Formular-System - Abhängigkeiten
+# Optimiert für Streamlit Cloud
 # ============================================
 
-# === Core ===
+# === Core (erforderlich) ===
 streamlit>=1.32.0
 pydantic>=2.0.0
 
@@ -17,59 +18,16 @@ jinja2>=3.1.0
 docxtpl>=0.16.0
 python-docx>=1.0.0
 
-# PDF
-weasyprint>=60.0
+# PDF (ReportLab funktioniert auf Streamlit Cloud)
 reportlab>=4.0.0
 pypdf>=4.0.0
 
+# WeasyPrint - NICHT auf Streamlit Cloud verwenden!
+# Braucht System-Bibliotheken: apt install libpango-1.0-0
+# weasyprint>=60.0
+
 # === E-Mail ===
 # SMTP ist in stdlib enthalten
-sendgrid>=6.10.0  # Optional: SendGrid Provider
-
-# === Microsoft Graph (Optional) ===
-msal>=1.24.0
-requests>=2.31.0
-
-# === Google APIs (Optional) ===
-google-auth>=2.22.0
-google-auth-oauthlib>=1.1.0
-google-api-python-client>=2.100.0
-
-# === Docusign (Optional) ===
-docusign-esign>=3.20.0
-
-# === Background Jobs (Optional) ===
-celery[redis]>=5.3.0
-
-# === Virenscan (Optional) ===
-clamd>=1.0.2
 
 # === Utils ===
 python-dateutil>=2.8.0
-pytz>=2023.3
-
-# ============================================
-# Installation:
-# 
-# Minimal (ohne optionale Features):
-#   pip install streamlit pydantic sqlalchemy jinja2 \
-#               docxtpl python-docx weasyprint reportlab pypdf
-#
-# Vollständig:
-#   pip install -r requirements.txt
-#
-# Für PDF-Generierung mit WeasyPrint:
-#   - Ubuntu: apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0
-#   - macOS: brew install pango
-#
-# Für DOCX→PDF Konvertierung:
-#   apt install libreoffice
-#
-# Für Virenscan:
-#   apt install clamav clamav-daemon
-#   systemctl start clamav-daemon
-#
-# Für Background Jobs:
-#   - Redis: apt install redis-server
-#   - Worker starten: celery -A modules.tasks worker
-# ============================================
