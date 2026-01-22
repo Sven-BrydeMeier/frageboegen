@@ -1,0 +1,390 @@
+{
+  "id": "form_arbeitsrecht",
+  "name": "arbeitsrecht_kuendigung",
+  "title": "Arbeitsrechtliche Erstberatung - Kündigung",
+  "description": "Fragebogen für Mandanten mit arbeitsrechtlichen Anliegen im Bereich Kündigung",
+  "category": "Arbeitsrecht",
+  "version": 1,
+  "status": "active",
+  "pages": [
+    {
+      "id": "page_1",
+      "title": "Persönliche Daten",
+      "description": "Bitte geben Sie zunächst Ihre persönlichen Daten an.",
+      "order": 0,
+      "fields": [
+        {
+          "id": "anrede",
+          "type": "radio",
+          "label": "Anrede",
+          "options": [
+            {"label": "Herr", "value": "herr"},
+            {"label": "Frau", "value": "frau"},
+            {"label": "Divers", "value": "divers"}
+          ],
+          "validation": {"required": true}
+        },
+        {
+          "id": "vorname",
+          "type": "text",
+          "label": "Vorname",
+          "placeholder": "Ihr Vorname",
+          "validation": {"required": true, "min_length": 2}
+        },
+        {
+          "id": "nachname",
+          "type": "text",
+          "label": "Nachname",
+          "placeholder": "Ihr Nachname",
+          "validation": {"required": true, "min_length": 2}
+        },
+        {
+          "id": "geburtsdatum",
+          "type": "date",
+          "label": "Geburtsdatum",
+          "validation": {"required": true}
+        },
+        {
+          "id": "email",
+          "type": "email",
+          "label": "E-Mail-Adresse",
+          "validation": {"required": true}
+        },
+        {
+          "id": "telefon",
+          "type": "phone",
+          "label": "Telefonnummer",
+          "placeholder": "+49...",
+          "description": "Für Rückfragen"
+        }
+      ]
+    },
+    {
+      "id": "page_2",
+      "title": "Arbeitsverhältnis",
+      "description": "Angaben zu Ihrem Arbeitsverhältnis",
+      "order": 1,
+      "fields": [
+        {
+          "id": "arbeitgeber",
+          "type": "text",
+          "label": "Name des Arbeitgebers",
+          "validation": {"required": true}
+        },
+        {
+          "id": "branche",
+          "type": "select",
+          "label": "Branche",
+          "options": [
+            {"label": "Industrie / Produktion", "value": "industrie"},
+            {"label": "Handel / Einzelhandel", "value": "handel"},
+            {"label": "Dienstleistung", "value": "dienstleistung"},
+            {"label": "IT / Technologie", "value": "it"},
+            {"label": "Gesundheitswesen", "value": "gesundheit"},
+            {"label": "Öffentlicher Dienst", "value": "oeffentlich"},
+            {"label": "Gastronomie / Hotel", "value": "gastro"},
+            {"label": "Sonstiges", "value": "sonstiges"}
+          ]
+        },
+        {
+          "id": "position",
+          "type": "text",
+          "label": "Ihre Position / Tätigkeit",
+          "placeholder": "z.B. Sachbearbeiter, Abteilungsleiter"
+        },
+        {
+          "id": "beschaeftigt_seit",
+          "type": "date",
+          "label": "Beschäftigt seit",
+          "validation": {"required": true}
+        },
+        {
+          "id": "arbeitszeit",
+          "type": "radio",
+          "label": "Arbeitszeit",
+          "options": [
+            {"label": "Vollzeit", "value": "vollzeit"},
+            {"label": "Teilzeit", "value": "teilzeit"},
+            {"label": "Minijob", "value": "minijob"}
+          ],
+          "validation": {"required": true}
+        },
+        {
+          "id": "wochenstunden",
+          "type": "number",
+          "label": "Wochenstunden",
+          "validation": {"min_value": 1, "max_value": 60},
+          "conditional_logic": {
+            "enabled": true,
+            "logic_type": "any",
+            "conditions": [
+              {"field": "arbeitszeit", "operator": "eq", "value": "vollzeit"},
+              {"field": "arbeitszeit", "operator": "eq", "value": "teilzeit"}
+            ]
+          }
+        },
+        {
+          "id": "bruttogehalt",
+          "type": "number",
+          "label": "Monatliches Bruttogehalt (€)",
+          "description": "Ungefähre Angabe genügt"
+        },
+        {
+          "id": "tarifvertrag",
+          "type": "radio",
+          "label": "Gilt ein Tarifvertrag?",
+          "options": [
+            {"label": "Ja", "value": "ja"},
+            {"label": "Nein", "value": "nein"},
+            {"label": "Weiß nicht", "value": "unbekannt"}
+          ]
+        },
+        {
+          "id": "betriebsrat",
+          "type": "radio",
+          "label": "Gibt es einen Betriebsrat?",
+          "options": [
+            {"label": "Ja", "value": "ja"},
+            {"label": "Nein", "value": "nein"},
+            {"label": "Weiß nicht", "value": "unbekannt"}
+          ]
+        },
+        {
+          "id": "mitarbeiter_anzahl",
+          "type": "select",
+          "label": "Anzahl Mitarbeiter im Betrieb",
+          "options": [
+            {"label": "Unter 10", "value": "<10"},
+            {"label": "10-50", "value": "10-50"},
+            {"label": "51-100", "value": "51-100"},
+            {"label": "Über 100", "value": ">100"},
+            {"label": "Weiß nicht", "value": "unbekannt"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page_3",
+      "title": "Kündigung",
+      "description": "Angaben zur Kündigung",
+      "order": 2,
+      "fields": [
+        {
+          "id": "kuendigung_erhalten",
+          "type": "radio",
+          "label": "Haben Sie bereits eine Kündigung erhalten?",
+          "options": [
+            {"label": "Ja", "value": "ja"},
+            {"label": "Nein, aber sie wurde angekündigt", "value": "angekuendigt"},
+            {"label": "Nein", "value": "nein"}
+          ],
+          "validation": {"required": true}
+        },
+        {
+          "id": "kuendigung_datum",
+          "type": "date",
+          "label": "Datum der Kündigung (Zugang)",
+          "description": "Wann haben Sie die Kündigung erhalten?",
+          "conditional_logic": {
+            "enabled": true,
+            "logic_type": "all",
+            "conditions": [
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "ja"}
+            ]
+          },
+          "validation": {"required": true}
+        },
+        {
+          "id": "kuendigung_art",
+          "type": "select",
+          "label": "Art der Kündigung",
+          "options": [
+            {"label": "Ordentliche Kündigung", "value": "ordentlich"},
+            {"label": "Fristlose Kündigung", "value": "fristlos"},
+            {"label": "Änderungskündigung", "value": "aenderung"},
+            {"label": "Aufhebungsvertrag (Angebot)", "value": "aufhebung"},
+            {"label": "Weiß nicht", "value": "unbekannt"}
+          ],
+          "conditional_logic": {
+            "enabled": true,
+            "logic_type": "any",
+            "conditions": [
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "ja"},
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "angekuendigt"}
+            ]
+          }
+        },
+        {
+          "id": "kuendigung_grund",
+          "type": "select",
+          "label": "Angegebener Kündigungsgrund",
+          "options": [
+            {"label": "Betriebsbedingt", "value": "betriebsbedingt"},
+            {"label": "Verhaltensbedingt", "value": "verhaltensbedingt"},
+            {"label": "Personenbedingt (Krankheit)", "value": "personenbedingt"},
+            {"label": "Kein Grund angegeben", "value": "ohne_grund"},
+            {"label": "Sonstiges", "value": "sonstiges"}
+          ],
+          "conditional_logic": {
+            "enabled": true,
+            "logic_type": "any",
+            "conditions": [
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "ja"},
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "angekuendigt"}
+            ]
+          }
+        },
+        {
+          "id": "abmahnung",
+          "type": "radio",
+          "label": "Haben Sie vorher eine Abmahnung erhalten?",
+          "options": [
+            {"label": "Ja, eine", "value": "eine"},
+            {"label": "Ja, mehrere", "value": "mehrere"},
+            {"label": "Nein", "value": "nein"}
+          ]
+        },
+        {
+          "id": "schwerbehindert",
+          "type": "radio",
+          "label": "Sind Sie schwerbehindert oder gleichgestellt?",
+          "options": [
+            {"label": "Ja", "value": "ja"},
+            {"label": "Nein", "value": "nein"}
+          ]
+        },
+        {
+          "id": "schwanger",
+          "type": "radio",
+          "label": "Besteht Schwangerschaft oder Elternzeit?",
+          "options": [
+            {"label": "Ja", "value": "ja"},
+            {"label": "Nein", "value": "nein"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page_4",
+      "title": "Ihr Ziel & Unterlagen",
+      "description": "Was möchten Sie erreichen?",
+      "order": 3,
+      "fields": [
+        {
+          "id": "ziel",
+          "type": "multi_select",
+          "label": "Was ist Ihr Ziel?",
+          "options": [
+            {"label": "Weiterbeschäftigung", "value": "weiterbeschaeftigung"},
+            {"label": "Abfindung", "value": "abfindung"},
+            {"label": "Korrektur des Arbeitszeugnisses", "value": "zeugnis"},
+            {"label": "Prüfung der Rechtmäßigkeit", "value": "pruefung"},
+            {"label": "Sonstiges", "value": "sonstiges"}
+          ],
+          "validation": {"required": true}
+        },
+        {
+          "id": "sachverhalt",
+          "type": "textarea",
+          "label": "Schildern Sie den Sachverhalt",
+          "placeholder": "Beschreiben Sie die Situation und wichtige Hintergründe...",
+          "description": "Je ausführlicher, desto besser können wir Ihnen helfen.",
+          "validation": {"required": true, "min_length": 100}
+        },
+        {
+          "id": "unterlagen",
+          "type": "file_upload",
+          "label": "Relevante Unterlagen",
+          "description": "Arbeitsvertrag, Kündigung, Abmahnungen, etc. (PDF, JPG, PNG)",
+          "allowed_file_types": [".pdf", ".jpg", ".jpeg", ".png"],
+          "max_files": 10
+        },
+        {
+          "id": "rechtsschutz",
+          "type": "radio",
+          "label": "Haben Sie eine Rechtsschutzversicherung?",
+          "options": [
+            {"label": "Ja, mit Arbeitsrecht", "value": "ja_arbeitsrecht"},
+            {"label": "Ja, aber ohne Arbeitsrecht", "value": "ja_ohne"},
+            {"label": "Nein", "value": "nein"},
+            {"label": "Weiß nicht", "value": "unbekannt"}
+          ]
+        },
+        {
+          "id": "rechtsschutz_name",
+          "type": "text",
+          "label": "Name der Versicherung / Versicherungsnummer",
+          "conditional_logic": {
+            "enabled": true,
+            "logic_type": "all",
+            "conditions": [
+              {"field": "rechtsschutz", "operator": "eq", "value": "ja_arbeitsrecht"}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "repeatable_sections": [],
+  "workflows": [
+    {
+      "id": "wf_arbeitsrecht",
+      "name": "Arbeitsrecht-Workflow",
+      "trigger": "on_submit",
+      "enabled": true,
+      "actions": [
+        {
+          "type": "generate_document",
+          "name": "Mandantenbogen erstellen",
+          "order": 1,
+          "config": {
+            "template": "mandantenbogen.docx",
+            "output_format": "pdf",
+            "filename": "Mandantenbogen_Arbeitsrecht_{{nachname}}.pdf"
+          }
+        },
+        {
+          "type": "send_email",
+          "name": "Bestätigung an Mandant",
+          "order": 2,
+          "config": {
+            "to_field": "email",
+            "subject": "Ihre Anfrage bei RA-RHM - Arbeitsrecht",
+            "template": "confirmation.html",
+            "attach_generated": true
+          }
+        },
+        {
+          "type": "send_email",
+          "name": "Benachrichtigung Kanzlei",
+          "order": 3,
+          "config": {
+            "to": ["arbeitsrecht@ra-rhm.de"],
+            "cc": ["sekretariat@ra-rhm.de"],
+            "subject": "Neue Arbeitsrecht-Anfrage: {{vorname}} {{nachname}}",
+            "template": "internal.html",
+            "attach_generated": true,
+            "priority": "high"
+          },
+          "condition": {
+            "enabled": true,
+            "logic_type": "all",
+            "conditions": [
+              {"field": "kuendigung_erhalten", "operator": "eq", "value": "ja"}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "show_progress": true,
+    "allow_save_draft": true,
+    "show_review_page": true,
+    "submit_button_text": "Anfrage absenden",
+    "success_message": "Vielen Dank für Ihre Anfrage! Aufgrund der Klagefrist bei Kündigungen (3 Wochen) werden wir uns schnellstmöglich bei Ihnen melden.",
+    "autosave_interval": 30
+  },
+  "created_at": "2024-01-01T00:00:00",
+  "updated_at": "2024-01-01T00:00:00"
+}
