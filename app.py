@@ -139,6 +139,99 @@ def convert_ff_conditions(ff_conditions: Dict) -> Optional[Dict]:
     }
 
 
+def fix_numbered_field_conditions(field: Dict, field_name: str, all_fields: List[Dict] = None) -> Dict:
+    """
+    Korrigiert Bedingungen für nummerierte Felder (z.B. names_3, email_2).
+    FluentForms hat oft inkonsistente Bedingungen bei wiederholten Feldern.
+    
+    Diese Funktion erkennt automatisch:
+    1. Felder mit numerischen Suffixen (_1, _2, _3, etc.)
+    2. "Anzahl-Steuerfelder" (Select mit neq-Bedingungen auf 0, 1, 2...)
+    3. Ergänzt fehlende Bedingungen NUR wenn eine Sequenz erkannt wird
+    
+    Funktioniert für ALLE Formulare mit dem Muster:
+    - Feld X erscheint wenn Anzahl != 0
+    - Feld X_1 erscheint wenn Anzahl != 0 UND != 1
+    - Feld X_2 erscheint wenn Anzahl != 0 UND != 1 UND != 2
+    """
+    cond = field.get('conditional_logic', {})
+    if not cond or not cond.get('enabled'):
+        return field
+    
+    conditions = cond.get('conditions', [])
+    if not conditions:
+        return field
+    
+    # Finde alle neq-Bedingungen gruppiert nach Referenz-Feld
+    neq_by_field = {}
+    for c in conditions:
+        if c.get('operator') == 'neq':
+            ref_field = c.get('field', '')
+            value = c.get('value', '')
+            if ref_field and value is not None:
+                if ref_field not in neq_by_field:
+                    neq_by_field[ref_field] = []
+                neq_by_field[ref_field].append(str(value))
+    
+    if not neq_by_field:
+        return field
+    
+    # Prüfe für jedes Referenz-Feld ob es eine Anzahl-Sequenz ist
+    modified = False
+    
+    for ref_field, values in neq_by_field.items():
+        # Prüfe ob die Werte numerisch sind und bei 0 beginnen
+        try:
+            numeric_values = sorted([int(v) for v in values if v.isdigit()])
+        except:
+            continue
+        
+        # Nur weitermachen wenn '0' dabei ist (typisches Muster für "Anzahl > 0")
+        if 0 not in numeric_values:
+            continue
+        
+        # Bestimme die erwartete Sequenz basierend auf dem Feldnamen-Suffix
+        match = re.search(r'_(\d+)$', field_name)
+        if not match:
+            # Kein Suffix = erstes Feld, nur '!= 0' nötig
+            continue
+        
+        suffix_num = int(match.group(1))
+        
+        # Berechne welcher Eintrag dieses Feld ist
+        # Verschiedene Konventionen in FluentForms:
+        base_name = re.sub(r'_\d+$', '', field_name)
+        
+        # Spezialfall: names_3 bedeutet "2. Eintrag" (names = 1, names_3 = 2)
+        if base_name == 'names' and suffix_num >= 3:
+            entry_num = suffix_num - 1  # names_3 → 2, names_4 → 3
+        # Normalfall: _1 = 2. Eintrag, _2 = 3. Eintrag
+        else:
+            entry_num = suffix_num + 1
+        
+        # Prüfe ob Bedingungen fehlen
+        expected_values = [str(i) for i in range(entry_num)]
+        missing_values = [v for v in expected_values if v not in values]
+        
+        if missing_values:
+            # Ergänze fehlende Bedingungen
+            for missing in missing_values:
+                conditions.append({
+                    'field': ref_field,
+                    'operator': 'neq',
+                    'value': missing
+                })
+            modified = True
+    
+    if modified:
+        # Aktualisiere die Bedingungen
+        field['conditional_logic']['conditions'] = conditions
+        # Bei mehreren neq-Bedingungen auf das gleiche Feld muss es ALL sein
+        field['conditional_logic']['logic_type'] = 'all'
+    
+    return field
+
+
 def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
     """Konvertiert ein FluentForms-Feld in internes Format"""
     element = ff_field.get('element', '')
@@ -200,6 +293,9 @@ def convert_ff_field(ff_field: Dict) -> Optional[Dict]:
     converted_cond = convert_ff_conditions(cond_logics)
     if converted_cond:
         field['conditional_logic'] = converted_cond
+    
+    # Korrigiere inkonsistente Bedingungen bei nummerierten Feldern
+    field = fix_numbered_field_conditions(field, field_name)
     
     # Section Break
     if element == 'section_break':
@@ -642,25 +738,193 @@ init_session_state()
 
 st.markdown("""
 <style>
+    /* =====================================================
+       SIDEBAR STYLING - Voller Kontrast für Lesbarkeit
+       ===================================================== */
+    
+    /* Sidebar Hintergrund */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #78350f, #92400e);
+        background: linear-gradient(180deg, #78350f, #92400e) !important;
     }
+    
+    section[data-testid="stSidebar"] > div {
+        background: transparent !important;
+    }
+    
+    /* ALLE Texte in der Sidebar weiß - sehr umfassend */
+    section[data-testid="stSidebar"],
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+    
     section[data-testid="stSidebar"] .stMarkdown,
-    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown *,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] h4,
     section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] span {
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] div,
+    section[data-testid="stSidebar"] a,
+    section[data-testid="stSidebar"] li,
+    section[data-testid="stSidebar"] small {
         color: white !important;
     }
-    section[data-testid="stSidebar"] .stButton button {
+    
+    /* Sidebar Buttons - Gut lesbar auf dunklem Hintergrund */
+    section[data-testid="stSidebar"] button,
+    section[data-testid="stSidebar"] .stButton button,
+    section[data-testid="stSidebar"] .stButton > button {
         color: white !important;
-        border-color: rgba(255,255,255,0.3) !important;
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        border: 2px solid rgba(255, 255, 255, 0.5) !important;
+        font-weight: 600 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
     }
+    
+    section[data-testid="stSidebar"] button:hover,
+    section[data-testid="stSidebar"] .stButton button:hover {
+        background-color: rgba(255, 255, 255, 0.3) !important;
+        border-color: white !important;
+        color: white !important;
+    }
+    
+    section[data-testid="stSidebar"] button:focus,
+    section[data-testid="stSidebar"] button:active,
+    section[data-testid="stSidebar"] .stButton button:focus,
+    section[data-testid="stSidebar"] .stButton button:active {
+        background-color: rgba(255, 255, 255, 0.35) !important;
+        border-color: white !important;
+        color: white !important;
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.3) !important;
+    }
+    
+    /* Sidebar Links */
+    section[data-testid="stSidebar"] a {
+        color: #fcd34d !important;  /* Gold für Links - gut sichtbar */
+        text-decoration: underline !important;
+    }
+    
+    section[data-testid="stSidebar"] a:hover {
+        color: #fef3c7 !important;
+    }
+    
+    /* Selectbox/Dropdown in Sidebar */
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stMultiSelect label,
+    section[data-testid="stSidebar"] .stTextInput label,
+    section[data-testid="stSidebar"] .stNumberInput label {
+        color: white !important;
+        font-weight: 500 !important;
+    }
+    
+    section[data-testid="stSidebar"] .stSelectbox > div > div,
+    section[data-testid="stSidebar"] .stMultiSelect > div > div,
+    section[data-testid="stSidebar"] .stTextInput > div > div > input,
+    section[data-testid="stSidebar"] .stNumberInput > div > div > input {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        color: white !important;
+    }
+    
+    /* Radio/Checkbox in Sidebar */
+    section[data-testid="stSidebar"] .stRadio label,
+    section[data-testid="stSidebar"] .stCheckbox label,
+    section[data-testid="stSidebar"] .stRadio span,
+    section[data-testid="stSidebar"] .stCheckbox span {
+        color: white !important;
+    }
+    
+    /* Expander in Sidebar */
+    section[data-testid="stSidebar"] .streamlit-expanderHeader,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        color: white !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 4px !important;
+    }
+    
+    section[data-testid="stSidebar"] [data-testid="stExpander"] {
+        border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* File Uploader in Sidebar */
+    section[data-testid="stSidebar"] .stFileUploader label {
+        color: white !important;
+    }
+    
+    section[data-testid="stSidebar"] .stFileUploader section {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* =====================================================
+       HAUPTBEREICH - Buttons und Formulare
+       ===================================================== */
+    
+    /* Primary Buttons */
+    .stButton button[kind="primary"],
+    .stButton button[data-testid="baseButton-primary"],
+    button[kind="primary"] {
+        background-color: #78350f !important;
+        border-color: #78350f !important;
+        color: white !important;
+    }
+    
+    .stButton button[kind="primary"]:hover,
+    .stButton button[data-testid="baseButton-primary"]:hover,
+    button[kind="primary"]:hover {
+        background-color: #92400e !important;
+        border-color: #92400e !important;
+    }
+    
+    /* Secondary Buttons im Hauptbereich */
+    .main .stButton button:not([kind="primary"]):not([data-testid="baseButton-primary"]) {
+        color: #78350f !important;
+        border-color: #78350f !important;
+        background-color: white !important;
+    }
+    
+    .main .stButton button:not([kind="primary"]):not([data-testid="baseButton-primary"]):hover {
+        background-color: #fef3c7 !important;
+    }
+    
+    /* Form Submit Buttons */
+    .stFormSubmitButton button {
+        color: #78350f !important;
+        border-color: #78350f !important;
+        background-color: white !important;
+    }
+    
+    .stFormSubmitButton button[kind="primary"],
+    .stFormSubmitButton button[type="primary"] {
+        background-color: #78350f !important;
+        border-color: #78350f !important;
+        color: white !important;
+    }
+    
+    /* =====================================================
+       REPEATABLE ITEMS
+       ===================================================== */
     .repeatable-item {
         border: 1px dashed #d1d5db;
         border-radius: 8px;
         padding: 15px;
         margin: 10px 0;
         background: #f9fafb;
+    }
+    
+    /* =====================================================
+       TABS
+       ===================================================== */
+    .stTabs [data-baseweb="tab"] {
+        color: #78350f !important;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #78350f !important;
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
